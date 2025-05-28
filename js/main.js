@@ -286,43 +286,69 @@ class GameScene extends Phaser.Scene {
       fontFamily: this.getFontFamily(),
     });
 
-    this.add.text(300, 200, "Press 1: 1 Player (vs Bot)", {
-      fontSize: "40px",
-      fill: "#ffff00",
-      fontFamily: this.getFontFamily(),
-    });
+    // Create clickable buttons for game modes
+    const createModeButton = (y, text, mode) => {
+      const button = this.add.rectangle(SCREEN_WIDTH / 2, y, 400, 60, 0xffff00, 0.3)
+        .setInteractive()
+        .on('pointerdown', () => {
+          if (this.selecting && !this.gameMode) {
+            this.gameMode = mode;
+            this.showCharacterSelection();
+          }
+        });
 
-    this.add.text(300, 270, "Press 2: 2 Player", {
-      fontSize: "40px",
-      fill: "#ffff00",
-      fontFamily: this.getFontFamily(),
-    });
+      this.add.text(SCREEN_WIDTH / 2, y, text, {
+        fontSize: "40px",
+        fill: "#ffff00",
+        fontFamily: this.getFontFamily(),
+      }).setOrigin(0.5);
 
-    this.add.text(10, 10, "Debug: Waiting for input...", {
-      fontSize: "16px",
-      fill: "#fff",
-      fontFamily: this.getFontFamily(),
-    });
+      return button;
+    };
+
+    createModeButton(200, "1 Player (vs Bot)", 1);
+    createModeButton(270, "2 Player", 2);
+
+    // Keep keyboard controls for desktop
+    if (!this.isMobile) {
+      this.add.text(300, 200, "Press 1: 1 Player (vs Bot)", {
+        fontSize: "40px",
+        fill: "#ffff00",
+        fontFamily: this.getFontFamily(),
+      });
+
+      this.add.text(300, 270, "Press 2: 2 Player", {
+        fontSize: "40px",
+        fill: "#ffff00",
+        fontFamily: this.getFontFamily(),
+      });
+    }
   }
 
   showCharacterSelection() {
     this.clearScreen();
 
-    console.log("Showing character selection");
-    console.log("Current state:", {
-      selecting: this.selecting,
-      player1Done: this.player1Done,
-      gameMode: this.gameMode,
-      player2Side: this.player2Side,
-    });
+    const createCharacterButton = (x, y, character, key) => {
+      const button = this.add.rectangle(x, y, 200, 60, 0xffff00, 0.3)
+        .setInteractive()
+        .on('pointerdown', () => {
+          if (this.selecting && !this.player1Done) {
+            this.selectCharacter(character);
+          } else if (this.selecting && this.player1Done && this.gameMode === 2) {
+            this.selectCharacter(character);
+          }
+        });
 
-    this.add.text(10, 10, "Press R to select Loki", {
-      fontSize: "16px",
-      fill: "#fff",
-      fontFamily: this.getFontFamily(),
-    });
+      this.add.text(x, y, `${key}: ${character.charAt(0).toUpperCase() + character.slice(1)}`, {
+        fontSize: "30px",
+        fill: "#ffff00",
+        fontFamily: this.getFontFamily(),
+      }).setOrigin(0.5);
 
-    this.add.text(50, 30, "Player 1: Choose Hero or Villain (Q/W/E/R)", {
+      return button;
+    };
+
+    this.add.text(50, 30, "Player 1: Choose Hero or Villain", {
       fontSize: "30px",
       fill: "#fff",
       fontFamily: this.getFontFamily(),
@@ -334,14 +360,11 @@ class GameScene extends Phaser.Scene {
       fontFamily: this.getFontFamily(),
     });
 
+    // Create hero buttons
     HEROES.forEach((hero, i) => {
-      this.add.text(
-        70,
-        150 + i * 30,
-        `${String.fromCharCode(81 + i)}: ${hero.charAt(0).toUpperCase() + hero.slice(1)
-        }`,
-        { fontSize: "30px", fill: "#ffff00", fontFamily: this.getFontFamily() }
-      );
+      const x = 150 + (i * 250);
+      const y = 150;
+      createCharacterButton(x, y, hero, String.fromCharCode(81 + i));
     });
 
     this.add.text(50, 220, "Villains:", {
@@ -350,19 +373,26 @@ class GameScene extends Phaser.Scene {
       fontFamily: this.getFontFamily(),
     });
 
+    // Create villain buttons
     VILLAINS.forEach((villain, i) => {
+      const x = 150 + (i * 250);
+      const y = 250;
       const key = i === 0 ? "E" : "R";
-      this.add.text(
-        70,
-        250 + i * 30,
-        `${key}: ${villain.charAt(0).toUpperCase() + villain.slice(1)}`,
-        { fontSize: "30px", fill: "#ffff00", fontFamily: this.getFontFamily() }
-      );
+      createCharacterButton(x, y, villain, key);
     });
 
     if (this.player1Done && this.gameMode === 2) {
-      this.add.text(50, 60, "Player 2: Choose Opponent (U/I/O/P)", {
+      this.add.text(50, 60, "Player 2: Choose Opponent", {
         fontSize: "30px",
+        fill: "#fff",
+        fontFamily: this.getFontFamily(),
+      });
+    }
+
+    // Keep keyboard controls for desktop
+    if (!this.isMobile) {
+      this.add.text(10, 10, "Press R to select Loki", {
+        fontSize: "16px",
         fill: "#fff",
         fontFamily: this.getFontFamily(),
       });
