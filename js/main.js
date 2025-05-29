@@ -57,6 +57,9 @@ class GameScene extends Phaser.Scene {
     this.fontLoaded = false;
     this.touchControls = null;
     this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    this.mobileMenuTexts = [];
+    this.mobileCharTexts = [];
+    this.mobileControls = null;
   }
 
   preload() {
@@ -275,126 +278,132 @@ class GameScene extends Phaser.Scene {
         child.destroy();
       }
     });
+    // Don't clear mobile controls here, they'll be recreated when needed
+    this.mobileMenuTexts = [];
+    this.mobileCharTexts = [];
   }
 
   showGameModeSelection() {
     this.clearScreen();
+    this.mobileMenuTexts = [];
 
-    this.add.text(320, 100, "Choose Game Mode", {
+    const mode1 = this.add.text(300, 200, "1 Player (vs Bot)", {
       fontSize: "40px",
-      fill: "#fff",
+      fill: "#ffff00",
       fontFamily: this.getFontFamily(),
+      backgroundColor: this.isMobile ? "#333" : undefined,
+      padding: { x: 20, y: 10 }
+    });
+    const mode2 = this.add.text(300, 270, "2 Player", {
+      fontSize: "40px",
+      fill: "#ffff00",
+      fontFamily: this.getFontFamily(),
+      backgroundColor: this.isMobile ? "#333" : undefined,
+      padding: { x: 20, y: 10 }
     });
 
-    // Create clickable buttons for game modes
-    const createModeButton = (y, text, mode) => {
-      const button = this.add.rectangle(SCREEN_WIDTH / 2, y, 400, 60, 0xffff00, 0.3)
-        .setInteractive()
-        .on('pointerdown', () => {
-          if (this.selecting && !this.gameMode) {
-            this.gameMode = mode;
-            this.showCharacterSelection();
-          }
-        });
+    this.mobileMenuTexts.push(mode1, mode2);
 
-      this.add.text(SCREEN_WIDTH / 2, y, text, {
-        fontSize: "40px",
-        fill: "#ffff00",
-        fontFamily: this.getFontFamily(),
-      }).setOrigin(0.5);
-
-      return button;
-    };
-
-    createModeButton(200, "1 Player (vs Bot)", 1);
-    createModeButton(270, "2 Player", 2);
-
-    // Keep keyboard controls for desktop
-    if (!this.isMobile) {
-      this.add.text(300, 200, "Press 1: 1 Player (vs Bot)", {
-        fontSize: "40px",
-        fill: "#ffff00",
-        fontFamily: this.getFontFamily(),
+    if (this.isMobile) {
+      mode1.setInteractive();
+      mode2.setInteractive();
+      mode1.on("pointerdown", () => {
+        this.gameMode = 1;
+        this.showCharacterSelection();
       });
+      mode2.on("pointerdown", () => {
+        this.gameMode = 2;
+        this.showCharacterSelection();
+      });
+    }
 
-      this.add.text(300, 270, "Press 2: 2 Player", {
-        fontSize: "40px",
-        fill: "#ffff00",
+    // Add quit button for desktop
+    if (!this.isMobile) {
+      const quitBtn = this.add.text(SCREEN_WIDTH - 60, 20, "X", {
+        fontSize: "36px",
+        fill: "#ff0000",
         fontFamily: this.getFontFamily(),
+        backgroundColor: "#222",
+        padding: { x: 10, y: 5 }
+      }).setInteractive();
+      quitBtn.on("pointerdown", () => {
+        window.location.reload();
       });
     }
   }
 
   showCharacterSelection() {
     this.clearScreen();
+    this.mobileCharTexts = [];
 
-    const createCharacterButton = (x, y, character, key) => {
-      const button = this.add.rectangle(x, y, 200, 60, 0xffff00, 0.3)
-        .setInteractive()
-        .on('pointerdown', () => {
-          if (this.selecting && !this.player1Done) {
-            this.selectCharacter(character);
-          } else if (this.selecting && this.player1Done && this.gameMode === 2) {
-            this.selectCharacter(character);
-          }
-        });
-
-      this.add.text(x, y, `${key}: ${character.charAt(0).toUpperCase() + character.slice(1)}`, {
-        fontSize: "30px",
-        fill: "#ffff00",
+    // Add quit button for desktop
+    if (!this.isMobile) {
+      const quitBtn = this.add.text(SCREEN_WIDTH - 60, 20, "X", {
+        fontSize: "36px",
+        fill: "#ff0000",
         fontFamily: this.getFontFamily(),
-      }).setOrigin(0.5);
-
-      return button;
-    };
-
-    this.add.text(50, 30, "Player 1: Choose Hero or Villain", {
-      fontSize: "30px",
-      fill: "#fff",
-      fontFamily: this.getFontFamily(),
-    });
-
-    this.add.text(50, 120, "Heroes:", {
-      fontSize: "30px",
-      fill: "#fff",
-      fontFamily: this.getFontFamily(),
-    });
-
-    // Create hero buttons
-    HEROES.forEach((hero, i) => {
-      const x = 150 + (i * 250);
-      const y = 150;
-      createCharacterButton(x, y, hero, String.fromCharCode(81 + i));
-    });
-
-    this.add.text(50, 220, "Villains:", {
-      fontSize: "30px",
-      fill: "#fff",
-      fontFamily: this.getFontFamily(),
-    });
-
-    // Create villain buttons
-    VILLAINS.forEach((villain, i) => {
-      const x = 150 + (i * 250);
-      const y = 250;
-      const key = i === 0 ? "E" : "R";
-      createCharacterButton(x, y, villain, key);
-    });
-
-    if (this.player1Done && this.gameMode === 2) {
-      this.add.text(50, 60, "Player 2: Choose Opponent", {
-        fontSize: "30px",
-        fill: "#fff",
-        fontFamily: this.getFontFamily(),
+        backgroundColor: "#222",
+        padding: { x: 10, y: 5 }
+      }).setInteractive();
+      quitBtn.on("pointerdown", () => {
+        window.location.reload();
       });
     }
 
-    // Keep keyboard controls for desktop
-    if (!this.isMobile) {
-      this.add.text(10, 10, "Press R to select Loki", {
-        fontSize: "16px",
-        fill: "#fff",
-        fontFamily: this.getFontFamily(),
+    // Player 1 selection
+    let y = 150;
+    HEROES.forEach((hero, i) => {
+      const txt = this.add.text(
+        70,
+        y + i * 40,
+        `${String.fromCharCode(81 + i)}: ${hero.charAt(0).toUpperCase() + hero.slice(1)}`,
+        { fontSize: "30px", fill: "#ffff00", fontFamily: this.getFontFamily(), backgroundColor: this.isMobile ? "#333" : undefined, padding: { x: 10, y: 5 } }
+      );
+      if (this.isMobile) {
+        txt.setInteractive();
+        txt.on("pointerdown", () => this.selectCharacter(hero));
+      }
+      this.mobileCharTexts.push(txt);
+    });
+
+    y += 100;
+    VILLAINS.forEach((villain, i) => {
+      const key = i === 0 ? "E" : "R";
+      const txt = this.add.text(
+        70,
+        y + i * 40,
+        `${key}: ${villain.charAt(0).toUpperCase() + villain.slice(1)}`,
+        { fontSize: "30px", fill: "#ffff00", fontFamily: this.getFontFamily(), backgroundColor: this.isMobile ? "#333" : undefined, padding: { x: 10, y: 5 } }
+      );
+      if (this.isMobile) {
+        txt.setInteractive();
+        txt.on("pointerdown", () => this.selectCharacter(villain));
+      }
+      this.mobileCharTexts.push(txt);
+    });
+
+    // Player 2 selection (if needed)
+    if (this.player1Done && this.gameMode === 2) {
+      let y2 = 60;
+      if (!this.isMobile) {
+        this.add.text(50, 60, "Player 2: Choose Opponent (U/I/O/P)", {
+          fontSize: "30px",
+          fill: "#fff",
+          fontFamily: this.getFontFamily(),
+        });
+      }
+      ["captain", "ironman", "thanos", "loki"].forEach((char, i) => {
+        const txt = this.add.text(
+          400,
+          y2 + i * 40,
+          `${char.charAt(0).toUpperCase() + char.slice(1)}`,
+          { fontSize: "30px", fill: "#ffff00", fontFamily: this.getFontFamily(), backgroundColor: this.isMobile ? "#333" : undefined, padding: { x: 10, y: 5 } }
+        );
+        if (this.isMobile) {
+          txt.setInteractive();
+          txt.on("pointerdown", () => this.selectCharacter(char));
+        }
+        this.mobileCharTexts.push(txt);
       });
     }
   }
@@ -528,26 +537,32 @@ class GameScene extends Phaser.Scene {
     });
 
     // Add game instructions
-    this.add.text(
-      10,
-      10,
-      "Player 1: Arrow keys to move, Up to jump, J/K to attack",
-      {
-        fontSize: "16px",
-        fill: "#fff",
-        fontFamily: this.getFontFamily(),
-      }
-    );
+    if (!this.isMobile) {
+      this.add.text(
+        10,
+        10,
+        "Player 1: Arrow keys to move, Up to jump, J/K to attack",
+        {
+          fontSize: "16px",
+          fill: "#fff",
+          fontFamily: this.getFontFamily(),
+        }
+      );
 
-    if (!this.fighter2.isBot) {
-      this.add.text(10, 30, "Player 2: A/D to move, W to jump, L to attack", {
-        fontSize: "16px",
-        fill: "#fff",
-        fontFamily: this.getFontFamily(),
-      });
+      if (!this.fighter2.isBot) {
+        this.add.text(10, 30, "Player 2: A/D to move, W to jump, L to attack", {
+          fontSize: "16px",
+          fill: "#fff",
+          fontFamily: this.getFontFamily(),
+        });
+      }
     }
 
     this.music.play();
+
+    if (this.isMobile) {
+      this.createTouchControls();
+    }
   }
 
   update() {
@@ -653,8 +668,10 @@ class GameScene extends Phaser.Scene {
     }
 
     if (this.keys.l.isDown && this.fighter2.attack_cooldown === 0) {
-      console.log("Player 2 attacking"); // Debug log
       this.fighter2.attack_type = 0;
+      this.fighter2.attack(this.fighter1);
+    } else if (this.keys.k.isDown && this.fighter2.attack_cooldown === 0) {
+      this.fighter2.attack_type = 1;
       this.fighter2.attack(this.fighter1);
     }
   }
@@ -664,10 +681,13 @@ class GameScene extends Phaser.Scene {
 
     const distance = target.x - bot.x;
     const absDistance = Math.abs(distance);
+    const verticalGap = Math.abs(target.y - bot.y);
 
     bot.flip = distance < 0;
 
-    if (absDistance < 60 && bot.attack_cooldown === 0) {
+    const inAttackRange = absDistance < 60 && verticalGap < 60;
+
+    if (inAttackRange && bot.attack_cooldown === 0) {
       bot.attack_type = Math.random() < 0.5 ? 0 : 1;
       bot.attack(target);
     } else {
@@ -693,40 +713,131 @@ class GameScene extends Phaser.Scene {
 
       this.clearScreen();
 
-      this.add
-        .image(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "victory")
-        .setScale(0.5);
+      this.add.image(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "victory").setScale(0.5);
 
-      this.add
-        .text(
-          SCREEN_WIDTH / 2,
-          SCREEN_HEIGHT / 2 + 100,
-          `Score - Player 1: ${this.score[0]}  Player 2: ${this.score[1]}`,
-          {
-            fontSize: "32px",
-            fill: "#fff",
-            fontFamily: this.getFontFamily(),
-          }
-        )
-        .setOrigin(0.5);
+      this.add.text(
+        SCREEN_WIDTH / 2,
+        SCREEN_HEIGHT / 2 + 100,
+        `Score - Player 1: ${this.score[0]}  Player 2: ${this.score[1]}`,
+        {
+          fontSize: "32px",
+          fill: "#fff",
+          fontFamily: this.getFontFamily(),
+        }
+      ).setOrigin(0.5);
 
-      this.add
-        .text(
+      if (this.score[0] === 3 || this.score[1] === 3) {
+        // Match over
+        const matchWinner = this.score[0] === 3 ? "Player 1" : "Player 2";
+        this.add.text(
           SCREEN_WIDTH / 2,
           SCREEN_HEIGHT / 2 + 150,
-          "Press SPACE to return to game mode selection",
+          `${matchWinner} Wins The Match!`,
           {
-            fontSize: "24px",
+            fontSize: "32px",
             fill: "#ffff00",
             fontFamily: this.getFontFamily(),
           }
-        )
-        .setOrigin(0.5);
+        ).setOrigin(0.5);
 
-      this.input.keyboard.once("keydown-SPACE", () => {
-        console.log("Returning to game mode selection...");
-        this.returnToGameModeSelection();
-      });
+        // Reset after delay or tap/space
+        if (this.isMobile) {
+          const returnButton = this.add.rectangle(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 + 220,
+            400,
+            60,
+            0x333333
+          ).setInteractive();
+          this.add.text(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 + 220,
+            "Tap to Restart",
+            {
+              fontSize: "24px",
+              fill: "#ffff00",
+              fontFamily: this.getFontFamily(),
+            }
+          ).setOrigin(0.5);
+          returnButton.on("pointerdown", () => {
+            this.score = [0, 0];
+            this.returnToGameModeSelection();
+          });
+        } else {
+          this.add.text(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 + 220,
+            "Press SPACE to Restart",
+            {
+              fontSize: "24px",
+              fill: "#ffff00",
+              fontFamily: this.getFontFamily(),
+            }
+          ).setOrigin(0.5);
+          this.input.keyboard.once("keydown-SPACE", () => {
+            this.score = [0, 0];
+            this.returnToGameModeSelection();
+          });
+        }
+      } else {
+        // Next round
+        if (this.isMobile) {
+          const returnButton = this.add.rectangle(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 + 200,
+            400,
+            60,
+            0x333333
+          ).setInteractive();
+          this.add.text(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 + 200,
+            "Tap to Continue",
+            {
+              fontSize: "24px",
+              fill: "#ffff00",
+              fontFamily: this.getFontFamily(),
+            }
+          ).setOrigin(0.5);
+          returnButton.on("pointerdown", () => {
+            this.roundOver = false;
+            this.introCount = 3;
+            this.lastCountUpdate = 0;
+            this.fighter1.reset(200, 310);
+            this.fighter2.reset(700, 310);
+            this.showHealthBars();
+            this.inputEnabled = true;
+            this.clearScreen();
+            if (this.isMobile) {
+              this.createTouchControls();
+            }
+          });
+        } else {
+          this.add.text(
+            SCREEN_WIDTH / 2,
+            SCREEN_HEIGHT / 2 + 150,
+            "Press SPACE to Continue",
+            {
+              fontSize: "24px",
+              fill: "#ffff00",
+              fontFamily: this.getFontFamily(),
+            }
+          ).setOrigin(0.5);
+          this.input.keyboard.once("keydown-SPACE", () => {
+            this.roundOver = false;
+            this.introCount = 3;
+            this.lastCountUpdate = 0;
+            this.fighter1.reset(200, 310);
+            this.fighter2.reset(700, 310);
+            this.showHealthBars();
+            this.inputEnabled = true;
+            this.clearScreen();
+            if (this.isMobile) {
+              this.createTouchControls();
+            }
+          });
+        }
+      }
     }
   }
 
@@ -752,6 +863,10 @@ class GameScene extends Phaser.Scene {
     }
 
     this.showGameModeSelection();
+
+    if (this.isMobile) {
+      this.createTouchControls();
+    }
   }
 
   showCountdown() {
@@ -783,36 +898,189 @@ class GameScene extends Phaser.Scene {
   }
 
   createTouchControls() {
-    this.touchControls = this.add.group();
+    if (this.mobileControls) {
+      this.mobileControls.clear(true, true);
+    }
+    this.mobileControls = this.add.group();
 
-    // Create virtual joystick
-    const leftButton = this.add.circle(TOUCH_CONTROLS.left.x, TOUCH_CONTROLS.left.y, TOUCH_CONTROLS.left.radius, 0xffffff, 0.5);
-    const rightButton = this.add.circle(TOUCH_CONTROLS.right.x, TOUCH_CONTROLS.right.y, TOUCH_CONTROLS.right.radius, 0xffffff, 0.5);
-    const attackButton = this.add.circle(TOUCH_CONTROLS.attack.x, TOUCH_CONTROLS.attack.y, TOUCH_CONTROLS.attack.radius, 0xff0000, 0.5);
-    const jumpButton = this.add.circle(TOUCH_CONTROLS.jump.x, TOUCH_CONTROLS.jump.y, TOUCH_CONTROLS.jump.radius, 0x00ff00, 0.5);
+    // D-pad left/right
+    const left = this.add.circle(80, SCREEN_HEIGHT - 80, 40, 0xffffff, 0.5).setScrollFactor(0);
+    const right = this.add.circle(180, SCREEN_HEIGHT - 80, 40, 0xffffff, 0.5).setScrollFactor(0);
 
-    this.touchControls.add(leftButton);
-    this.touchControls.add(rightButton);
-    this.touchControls.add(attackButton);
-    this.touchControls.add(jumpButton);
+    // Add directional arrows
+    const leftArrow = this.add.text(80, SCREEN_HEIGHT - 80, "←", {
+      fontSize: "32px",
+      fill: "#000000",
+      fontFamily: this.getFontFamily()
+    }).setOrigin(0.5).setScrollFactor(0);
 
-    // Make buttons interactive
-    [leftButton, rightButton, attackButton, jumpButton].forEach(button => {
+    const rightArrow = this.add.text(180, SCREEN_HEIGHT - 80, "→", {
+      fontSize: "32px",
+      fill: "#000000",
+      fontFamily: this.getFontFamily()
+    }).setOrigin(0.5).setScrollFactor(0);
+
+    // Jump
+    const jump = this.add.circle(SCREEN_WIDTH - 180, SCREEN_HEIGHT - 80, 40, 0x00ff00, 0.5).setScrollFactor(0);
+    const jumpArrow = this.add.text(SCREEN_WIDTH - 180, SCREEN_HEIGHT - 80, "↑", {
+      fontSize: "32px",
+      fill: "#000000",
+      fontFamily: this.getFontFamily()
+    }).setOrigin(0.5).setScrollFactor(0);
+
+    // Attack 1 & 2 for Player 1
+    const atk1 = this.add.circle(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 140, 35, 0xff0000, 0.5).setScrollFactor(0);
+    const atk2 = this.add.circle(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 40, 35, 0xff8800, 0.5).setScrollFactor(0);
+
+    // Add attack labels for Player 1
+    const atk1Label = this.add.text(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 140, "J", {
+      fontSize: "24px",
+      fill: "#000000",
+      fontFamily: this.getFontFamily()
+    }).setOrigin(0.5).setScrollFactor(0);
+
+    const atk2Label = this.add.text(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 40, "K", {
+      fontSize: "24px",
+      fill: "#000000",
+      fontFamily: this.getFontFamily()
+    }).setOrigin(0.5).setScrollFactor(0);
+
+    // Attack 1 & 2 for Player 2 (if in 2-player mode)
+    let atk1P2, atk2P2, atk1P2Label, atk2P2Label;
+    if (this.gameMode === 2 && !this.fighter2.isBot) {
+      atk1P2 = this.add.circle(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 240, 35, 0xff0000, 0.5).setScrollFactor(0);
+      atk2P2 = this.add.circle(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 180, 35, 0xff8800, 0.5).setScrollFactor(0);
+
+      atk1P2Label = this.add.text(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 240, "L", {
+        fontSize: "24px",
+        fill: "#000000",
+        fontFamily: this.getFontFamily()
+      }).setOrigin(0.5).setScrollFactor(0);
+
+      atk2P2Label = this.add.text(SCREEN_WIDTH - 80, SCREEN_HEIGHT - 180, "K", {
+        fontSize: "24px",
+        fill: "#000000",
+        fontFamily: this.getFontFamily()
+      }).setOrigin(0.5).setScrollFactor(0);
+    }
+
+    // Add all elements to the controls group
+    const controlElements = [left, right, jump, atk1, atk2, leftArrow, rightArrow, jumpArrow, atk1Label, atk2Label];
+    if (this.gameMode === 2 && !this.fighter2.isBot) {
+      controlElements.push(atk1P2, atk2P2, atk1P2Label, atk2P2Label);
+    }
+    this.mobileControls.addMultiple(controlElements);
+
+    // Make only the actual buttons interactive, not the labels
+    [left, right, jump, atk1, atk2].forEach(button => {
       button.setInteractive();
     });
 
-    // Add touch event handlers
-    leftButton.on('pointerdown', () => this.keys.a.isDown = true);
-    leftButton.on('pointerup', () => this.keys.a.isDown = false);
+    if (this.gameMode === 2 && !this.fighter2.isBot) {
+      [atk1P2, atk2P2].forEach(button => {
+        button.setInteractive();
+      });
+    }
 
-    rightButton.on('pointerdown', () => this.keys.d.isDown = true);
-    rightButton.on('pointerup', () => this.keys.d.isDown = false);
+    // These will simulate key presses for your input handlers
+    left.on("pointerdown", () => {
+      this.cursors.left.isDown = true;
+      left.setAlpha(0.7); // Visual feedback
+    });
+    left.on("pointerup", () => {
+      this.cursors.left.isDown = false;
+      left.setAlpha(0.5);
+    });
+    left.on("pointerout", () => {
+      this.cursors.left.isDown = false;
+      left.setAlpha(0.5);
+    });
 
-    attackButton.on('pointerdown', () => this.keys.j.isDown = true);
-    attackButton.on('pointerup', () => this.keys.j.isDown = false);
+    right.on("pointerdown", () => {
+      this.cursors.right.isDown = true;
+      right.setAlpha(0.7);
+    });
+    right.on("pointerup", () => {
+      this.cursors.right.isDown = false;
+      right.setAlpha(0.5);
+    });
+    right.on("pointerout", () => {
+      this.cursors.right.isDown = false;
+      right.setAlpha(0.5);
+    });
 
-    jumpButton.on('pointerdown', () => this.keys.w.isDown = true);
-    jumpButton.on('pointerup', () => this.keys.w.isDown = false);
+    jump.on("pointerdown", () => {
+      this.cursors.up.isDown = true;
+      jump.setAlpha(0.7);
+    });
+    jump.on("pointerup", () => {
+      this.cursors.up.isDown = false;
+      jump.setAlpha(0.5);
+    });
+    jump.on("pointerout", () => {
+      this.cursors.up.isDown = false;
+      jump.setAlpha(0.5);
+    });
+
+    atk1.on("pointerdown", () => {
+      this.keys.j.isDown = true;
+      atk1.setAlpha(0.7);
+    });
+    atk1.on("pointerup", () => {
+      this.keys.j.isDown = false;
+      atk1.setAlpha(0.5);
+    });
+    atk1.on("pointerout", () => {
+      this.keys.j.isDown = false;
+      atk1.setAlpha(0.5);
+    });
+
+    atk2.on("pointerdown", () => {
+      this.keys.k.isDown = true;
+      atk2.setAlpha(0.7);
+    });
+    atk2.on("pointerup", () => {
+      this.keys.k.isDown = false;
+      atk2.setAlpha(0.5);
+    });
+    atk2.on("pointerout", () => {
+      this.keys.k.isDown = false;
+      atk2.setAlpha(0.5);
+    });
+
+    // Player 2 attack controls (if in 2-player mode)
+    if (this.gameMode === 2 && !this.fighter2.isBot) {
+      atk1P2.on("pointerdown", () => {
+        this.keys.l.isDown = true;
+        atk1P2.setAlpha(0.7);
+      });
+      atk1P2.on("pointerup", () => {
+        this.keys.l.isDown = false;
+        atk1P2.setAlpha(0.5);
+      });
+      atk1P2.on("pointerout", () => {
+        this.keys.l.isDown = false;
+        atk1P2.setAlpha(0.5);
+      });
+
+      atk2P2.on("pointerdown", () => {
+        this.keys.k.isDown = true;
+        atk2P2.setAlpha(0.7);
+      });
+      atk2P2.on("pointerup", () => {
+        this.keys.k.isDown = false;
+        atk2P2.setAlpha(0.5);
+      });
+      atk2P2.on("pointerout", () => {
+        this.keys.k.isDown = false;
+        atk2P2.setAlpha(0.5);
+      });
+    }
+
+    // Hide controls on desktop
+    if (!this.isMobile) {
+      this.mobileControls.setVisible(false);
+    }
   }
 }
 

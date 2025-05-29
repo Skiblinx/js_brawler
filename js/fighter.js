@@ -7,175 +7,129 @@ class Fighter {
     this.spriteKey = spriteKey;
     this.steps = steps;
     this.sound = sound;
-
-    this.frameWidth = data[0];
-    this.scale = data[1];
-    this.offset = data[2];
-
-    this.sprite = scene.add.sprite(x, y, spriteKey);
-    this.sprite.setScale(this.scale);
-    this.hitbox = new Phaser.Geom.Rectangle(x, y, 80, 180);
-
-    this.attacking = false;
+    this.health = 100;
+    this.vel_y = 0;
     this.jump = false;
     this.running = false;
-    this.flip = false;
-    this.alive = true;
-    this.health = 100;
-    this.attack_cooldown = 0;
-    this.vel_y = 0;
-    this.frame_index = 0;
+    this.attacking = false;
     this.attack_type = 0;
+    this.attack_cooldown = 0;
     this.hit = false;
-    this.pre_attack_flip = false;
-    this.last_jump = 0;
-    this.next_jump_delay = 0;
+    this.alive = true;
+    this.flip = false;
 
-    this.SPEED = 10;
-    this.GRAVITY = 2;
-    this.JUMP_VELOCITY = -30;
-    this.ATTACK_COOLDOWN = 20;
-    this.ANIMATION_COOLDOWN = 40;
+    // Create sprite
+    this.sprite = scene.add.sprite(x, y, spriteKey);
+    this.sprite.setScale(data[1]);
+    this.sprite.setOrigin(0.5, 1);
 
+    // Adjust position based on offset data
+    const [frameWidth, scale, [offsetX, offsetY]] = data;
+    this.sprite.x += offsetX;
+    this.sprite.y += offsetY;
+
+    // Add animation complete event handler
+    this.sprite.on('animationcomplete', (anim) => {
+      if (anim.key.includes('attack')) {
+        this.attacking = false;
+      }
+      if (anim.key.includes('hit')) {
+        this.hit = false;
+      }
+      if (anim.key.includes('death')) {
+        // Handle death animation completion
+        this.alive = false;
+      }
+    });
+
+    // Create animations
     this.createAnimations();
   }
 
   createAnimations() {
-    const animations = [
-      { key: "idle", frames: this.steps[0] },
-      { key: "run", frames: this.steps[1] },
-      { key: "jump", frames: this.steps[2] },
-      { key: "attack1", frames: this.steps[3] },
-      { key: "attack2", frames: this.steps[4] },
-      { key: "hit", frames: this.steps[5] },
-      { key: "death", frames: this.steps[6] },
-    ];
-
-    animations.forEach((anim) => {
+    // Each row in the spritesheet is a different action
+    let startFrame = 0;
+    for (let i = 0; i < this.steps.length; i++) {
+      const frames = this.steps[i];
       this.scene.anims.create({
-        key: `${this.spriteKey}_${anim.key}`,
+        key: `${this.spriteKey}_action${i}`,
         frames: this.scene.anims.generateFrameNumbers(this.spriteKey, {
-          start: 0,
-          end: anim.frames - 1,
+          start: startFrame,
+          end: startFrame + frames - 1,
         }),
         frameRate: 10,
-        repeat: anim.key === "idle" ? -1 : 0,
+        repeat: i === 0 ? -1 : 0, // idle loops, others don't
       });
-    });
-  }
-
-  update() {
-    if (!this.alive) {
-      this.sprite.play(`${this.spriteKey}_death`, true);
-      return;
-    }
-
-    this.vel_y += this.GRAVITY;
-    this.y += this.vel_y;
-
-    if (this.y > 310) {
-      this.y = 310;
-      this.vel_y = 0;
-      this.jump = false;
-    }
-
-    this.hitbox.x = this.x - 40;
-    this.hitbox.y = this.y - 90;
-
-    this.sprite.setPosition(this.x, this.y);
-    this.sprite.setFlipX(this.flip);
-
-    this.updateAnimation();
-
-    if (this.attack_cooldown > 0) {
-      this.attack_cooldown--;
+      startFrame += frames;
     }
   }
 
   updateAnimation() {
-    if (this.health <= 0) {
-      this.sprite.play(`${this.spriteKey}_death`, true);
-    } else if (this.hit) {
-      this.sprite.play(`${this.spriteKey}_hit`, true);
-      this.hit = false;
-    } else if (this.attacking) {
-      this.sprite.play(`${this.spriteKey}_attack${this.attack_type + 1}`, true);
-    } else if (this.jump) {
-      this.sprite.play(`${this.spriteKey}_jump`, true);
-    } else if (this.running) {
-      this.sprite.play(`${this.spriteKey}_run`, true);
-    } else {
-      this.sprite.play(`${this.spriteKey}_idle`, true);
+    let actionIndex = 0;
+    if (this.health <= 0) actionIndex = 6;
+    else if (this.hit) actionIndex = 5;
+    else if (this.attacking) actionIndex = this.attack_type === 0 ? 3 : 4;
+    else if (this.jump) actionIndex = 2;
+    else if (this.running) actionIndex = 1;
+    else actionIndex = 0;
+    this.sprite.play(`${this.spriteKey}_action${actionIndex}`, true);
+  }
+
+  update() {
+    // Update position
+    this.sprite.x = this.x;
+    this.sprite.y = this.y;
+    this.sprite.flipX = this.flip;
+
+    // Update animation
+    this.updateAnimation();
+
+    // Handle attack cooldown
+    if (this.attack_cooldown > 0) {
+      this.attack_cooldown--;
+    }
+
+    // Handle death
+    if (this.health <= 0 && this.alive) {
+      this.alive = false;
+      this.health = 0;
     }
   }
 
   attack(target) {
     if (this.attack_cooldown === 0) {
       this.attacking = true;
-      this.attack_cooldown = this.ATTACK_COOLDOWN;
+      this.attack_cooldown = 20;
       this.sound.play();
 
-      this.pre_attack_flip = this.flip;
-
-      const hitbox_width = 1;
-      const hitbox_offset = 10;
-      let attackHitbox;
-
-      if (this.flip) {
-        attackHitbox = new Phaser.Geom.Rectangle(
-          this.hitbox.x + 10,
-          this.hitbox.y,
-          hitbox_width,
-          this.hitbox.height
-        );
-      } else {
-        attackHitbox = new Phaser.Geom.Rectangle(
-          this.hitbox.right - 10,
-          this.hitbox.y,
-          hitbox_width,
-          this.hitbox.height
-        );
+      // Check if attack hits
+      const distance = Math.abs(this.x - target.x);
+      if (distance < 100) {
+        target.takeDamage(10);
       }
-
-      if (Phaser.Geom.Rectangle.Overlaps(attackHitbox, target.hitbox)) {
-        target.takeHit(10);
-      }
-
-      // Reset attacking state after animation
-      this.scene.time.delayedCall(500, () => {
-        this.attacking = false;
-      });
     }
   }
 
-  takeHit(damage) {
-    this.health -= damage;
+  takeDamage(amount) {
+    this.health -= amount;
     this.hit = true;
-
-    if (this.health <= 0) {
-      this.health = 0;
-      this.alive = false;
-      this.sprite.play(`${this.spriteKey}_death`, true);
-    } else {
-      this.sprite.play(`${this.spriteKey}_hit`, true);
-    }
   }
 
   reset(x, y) {
     this.x = x;
     this.y = y;
     this.health = 100;
-    this.alive = true;
-    this.attacking = false;
+    this.vel_y = 0;
     this.jump = false;
     this.running = false;
+    this.attacking = false;
+    this.attack_type = 0;
     this.attack_cooldown = 0;
-    this.vel_y = 0;
     this.hit = false;
+    this.alive = true;
+    this.flip = false;
     this.sprite.setPosition(x, y);
-    this.hitbox.x = x - 40;
-    this.hitbox.y = y - 90;
-    this.sprite.play(`${this.spriteKey}_idle`, true);
+    this.updateAnimation();
   }
 
   // Bot AI methods
@@ -186,46 +140,44 @@ class Fighter {
     const absDistance = Math.abs(distance);
     const verticalGap = Math.abs(target.y - this.y);
 
-    if (this.attacking) {
-      this.flip = this.pre_attack_flip;
+    // Always face the target
+    this.flip = distance < 0;
+
+    const inAttackRange = absDistance < 60 && verticalGap < 60;
+
+    // More aggressive movement
+    if (!inAttackRange) {
+      this.running = true;
+      const moveSpeed = 4; // Increased from 5 to 4 for smoother movement
+      this.x += distance > 0 ? moveSpeed : -moveSpeed;
     } else {
-      this.flip = distance < 0;
-      this.pre_attack_flip = this.flip;
+      this.running = false;
     }
 
-    const inAttackRange = absDistance < 1 && verticalGap < 1;
+    // More aggressive attack behavior
+    if (inAttackRange && this.attack_cooldown === 0 && !this.attacking) {
+      this.attack_type = Math.random() < 0.5 ? 0 : 1;
+      this.attack(target);
+    }
 
+    // More responsive jumping
     if (target.jump && !this.jump) {
-      this.vel_y = this.JUMP_VELOCITY;
+      this.vel_y = -30;
       this.jump = true;
     } else {
       const now = this.scene.time.now;
       if (!this.last_jump) {
         this.last_jump = now;
-        this.next_jump_delay = Phaser.Math.Between(1200, 3000);
+        this.next_jump_delay = Phaser.Math.Between(1000, 2000); // Reduced delay
       }
       if (now - this.last_jump > this.next_jump_delay) {
-        if (!this.jump) {
-          this.vel_y = this.JUMP_VELOCITY;
+        if (!this.jump && Math.random() < 0.3) { // 30% chance to jump
+          this.vel_y = -30;
           this.jump = true;
         }
         this.last_jump = now;
-        this.next_jump_delay = Phaser.Math.Between(1200, 3000);
+        this.next_jump_delay = Phaser.Math.Between(1000, 2000);
       }
-    }
-
-    if (inAttackRange && this.attack_cooldown === 0 && !this.attacking) {
-      this.attack_type = Phaser.Math.Between(0, 1);
-      this.attack(target);
-      this.running = false;
-      return;
-    }
-
-    if (!inAttackRange) {
-      this.running = true;
-      this.x += distance > 0 ? 5 : -5;
-    } else {
-      this.running = false;
     }
   }
 }
